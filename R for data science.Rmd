@@ -1953,49 +1953,1777 @@ head(dir(pattern = "\\.Rmd$"))
 # ###### 12. Factors with forcats 
 
 ```{r}
+library(tidyverse)
+library(forcats)
+```
+
+```{r}
+x1 <- c("Dec","Apr","Jan","Mar")
+x2 <- c("Dec","Apr","Jam","Mar")
+sort(x1)
+```
+
+```{r}
+month_levels <- c(
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+)
+y1 <- factor(x1, levels = month_levels)
+sort(y1)
+```
+
+```{r}
+y2 <- factor(x2, levels = month_levels)
+y2
+```
+
+```{r}
+y2 <- parse_factor(x2, levels = month_levels)
+```
+
+```{r}
+factor(x1)
+```
+
+```{r}
+f1 <- factor(x1, levels = unique(x1))
+f1 
+
+f2 <- x1 %>%
+  factor() %>%
+  fct_inorder()
+f2
+levels(f2)
+```
+
+```{r}
+gss_cat
+```
+
+```{r}
+gss_cat %>% 
+  count(race)
+```
+
+```{r}
+ggplot(gss_cat, aes(race)) + geom_bar()
+```
+
+```{r}
+ggplot(gss_cat, aes(race)) + geom_bar() + scale_x_discrete(drop = FALSE)
+```
+
+```{r}
+relig <- gss_cat %>%
+  group_by(relig) %>%
+  summarize(
+    age = mean(age, na.rm = TRUE),
+    tvhours = mean(tvhours, na.rm = TRUE),
+    n = n()
+  )
+ggplot(relig, aes(tvhours, relig)) + geom_point()
+```
+
+```{r}
+relig
+```
+
+
+```{r}
+ggplot(relig, aes(tvhours, fct_reorder(relig, tvhours))) + geom_point()
+```
+
+```{r}
+relig %>%
+  mutate(relig = fct_reorder(relig, tvhours)) %>%
+  ggplot(aes(tvhours, relig)) + geom_point()
+```
+
+```{r}
+rincome <- gss_cat %>%
+  group_by(rincome) %>%
+  summarize(
+    age = mean(age, na.rm = TRUE),
+    tvhours = mean(tvhours, na.rm = TRUE),
+    n = n()
+  )
+ggplot(rincome, aes(age, fct_reorder(rincome, age))) + geom_point()
+```
+
+```{r}
+ggplot(rincome, aes(age, fct_relevel(rincome, "Not applicable"))) + geom_point()
+```
+
+```{r}
+by_age <- gss_cat %>% 
+  filter(!is.na(age)) %>%
+  group_by(age, marital) %>%
+  count() %>%
+  mutate(prop = n/sum(n))
+
+ggplot(by_age, aes(age, prop, color = marital)) + 
+  geom_line(na.rm = TRUE)
+
+ggplot(by_age, aes(age, prop, color = fct_reorder2(marital, age, prop))) + 
+  geom_line() + 
+  labs(color = "marital")
 
 ```
+
+```{r}
+gss_cat %>%
+  mutate(marital = marital %>% fct_infreq() %>% fct_rev()) %>%
+  ggplot(aes(marital)) + 
+  geom_bar()
+```
+
+```{r}
+gss_cat %>% count(partyid)
+```
+
+```{r}
+gss_cat %>% 
+  mutate(partyid = fct_recode(partyid,
+"Republican, strong" = "Strong republican",
+"Republican, weak" = "Not str republican",
+"Independent, near rep" = "Ind,near rep",
+"Independent, near dem" = "Ind,near dem",
+"Democrat, weak" = "Not str democrat",
+"Democrat, strong" = "Strong democrat"
+                              )) %>%
+  count(partyid)
+```
+
+```{r}
+gss_cat %>%
+  mutate(partyid = fct_recode(partyid,
+"Republican, strong" = "Strong republican",
+"Republican, weak" = "Not str republican",
+"Independent, near rep" = "Ind,near rep",
+"Independent, near dem" = "Ind,near dem",
+"Democrat, weak" = "Not str democrat",
+"Democrat, strong" = "Strong democrat",
+"Other" = "No answer",
+"Other" = "Don't know",
+"Other" = "Other party"              
+                              )) %>%
+  count(partyid)
+```
+
+```{r}
+gss_cat %>% 
+  mutate(partyid = fct_collapse(partyid,
+        other = c("No answer", "Don't know", "Other party"),
+        rep = c("Strong republican", "Not str republican"),
+        ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+        dem = c("Not str democrat", "Strong democrat"))) %>%
+  count(partyid)
+```
+
+```{r}
+gss_cat %>% 
+  mutate(relig = fct_lump(relig)) %>%
+  count(relig)
+```
+
+```{r}
+gss_cat %>% 
+  mutate(relig = fct_lump(relig, n = 10)) %>%
+  count(relig, sort = TRUE) %>%
+  print(n = Inf)
+```
+
 
 
 # ###### 13. Dates and times with lubridate 
 
 
+```{r}
+library(tidyverse)
+library(lubridate)
+library(nycflights13)
+```
+
+```{r}
+today()
+now()
+```
+
+```{r}
+ymd("2017-01-31")
+mdy("January 31st, 2017")
+dmy("31-Jan-2017")
+```
+
+```{r}
+ymd(20170131)
+```
+
+```{r}
+ymd_hms("2017-01-31 20:11:59")
+mdy_hm("01/31/2017 08:01")
+```
+```{r}
+ymd(20170131, tz = "UTC")
+```
+
+```{r}
+flights %>%
+  select(year, month, day, hour, minute)
+```
+
+```{r}
+flights %>%
+  select(year, month, day, hour, minute) %>% 
+  mutate(
+    departure = make_datetime(year, month, day, hour, minute)
+  )
+```
+
+
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+flights_dt <- flights %>%
+  filter(!is.na(dep_time), !is.na(arr_time)) %>%
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)) %>%
+select(origin, dest, ends_with("delay"), ends_with("time"))
+
+flights_dt
+```
+
+```{r}
+flights_dt %>%
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 86400) # 86400 seconds = 1 day
+```
+
+```{r}
+flights_dt %>%
+  filter(dep_time < ymd(20130102)) %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 600)
+```
+
+```{r}
+as_datetime(today())
+as_date(now())
+```
+
+```{r}
+as_datetime(60*60*10)
+as_date(365*10+2)
+```
+
+```{r}
+datetime <- ymd_hms("2016-07-08 12:34:56")
+
+year(datetime)
+month(datetime)
+mday(datetime)
+yday(datetime)
+wday(datetime)
+```
+
+```{r}
+month(datetime, label = TRUE)
+wday(datetime, label = TRUE, abbr = FALSE)
+```
+
+```{r}
+flights_dt %>%
+  mutate(wday = wday(dep_time, label = TRUE)) %>%
+  ggplot(aes(x = wday)) +
+    geom_bar()
+```
+
+```{r}
+flights_dt %>%
+  mutate(minute = minute(dep_time)) %>%
+  group_by(minute) %>%
+  summarize(
+    avg_delay = mean(arr_delay, na.rm = TRUE),
+    n = n()
+  ) %>%
+  ggplot(aes(minute, avg_delay)) + 
+  geom_line()
+```
+
+```{r}
+sched_dep <- flights_dt %>%
+  mutate(minute = minute(sched_dep_time)) %>%
+  group_by(minute) %>%
+  summarize(
+    avg_delay = mean(arr_delay, na.rm = TRUE),
+    n = n()
+  )
+
+ggplot(sched_dep, aes(minute, avg_delay)) + 
+  geom_line()
+```
+
+```{r}
+ggplot(sched_dep, aes(minute, n)) + 
+  geom_line()
+```
+
+```{r}
+flights_dt %>%
+  count(week = floor_date(dep_time, "week")) %>%
+  ggplot(aes(week, n)) + 
+  geom_line()
+```
+
+```{r}
+(datetime <- ymd_hms("2016-07-08 12:34:56"))
+```
+
+```{r}
+year(datetime) <- 2020
+month(datetime) <- 01
+hour(datetime) <- hour(datetime) + 1
+datetime
+```
+
+```{r}
+update(datetime, year = 2020, month = 2, mday = 2, hour = 2)
+```
+
+```{r}
+ymd("2015-02-01") %>%
+  update(mday = 30)
+ymd("2015-02-01") %>%
+  update(hour = 400)
+```
+
+```{r}
+flights_dt %>%
+  mutate(dep_hour = update(dep_time, yday = 1)) %>%
+  ggplot(aes(dep_hour)) + 
+  geom_freqpoly(binwidth = 300)
+```
+
+```{r}
+h_age <- today() - ymd(19791014)
+h_age
+```
+
+```{r}
+as.duration(h_age)
+```
+
+```{r}
+dseconds(15)
+dminutes(10)
+dhours(c(12,24))
+ddays(0:5)
+dweeks(3)
+dyears(1)
+```
+
+```{r}
+2 * dyears(1)
+dyears(1) + dweeks(12) + dhours(15)
+```
+
+```{r}
+tomorrow <- today() + ddays(1)
+last_year <- today() - dyears(1)
+```
+
+```{r}
+one_om <- ymd_hms("2016-03-12 13:00:00", tz = "America/New_York")
+one_pm
+one_pm + ddays(1)
+```
+
+```{r}
+one_pm
+one_pm + days(1)
+```
+
+```{r}
+seconds(15)
+minutes(10)
+hours(c(12,24))
+days(7)
+months(1:6)
+weeks(3)
+years(1)
+```
+
+```{r}
+10 * (months(6) + days(1))
+days(50) + hours(25) + minutes(2)
+```
+
+```{r}
+ymd("2016-01-01") + dyears(1)
+ymd("2016-01-01") + years(1)
+```
+
+```{r}
+one_pm + ddays(1)
+one_pm + days(1)
+```
+
+```{r}
+flights_dt %>%
+  filter(arr_time < dep_time)
+```
+
+```{r}
+flights_dt <- flights_dt %>%
+  mutate(overnight = arr_time < dep_time,
+         arr_time = arr_time + days(overnight * 1),
+         sched_arr_time = sched_arr_time + days(overnight * 1))
+```
+
+```{r}
+flights_dt %>% 
+  filter(overnight, arr_time < dep_time)
+```
+
+```{r}
+years(1)/days(1)
+```
+
+```{r}
+next_year <- today() + years(1)
+(today() %--% next_year) / ddays(1)
+```
+
+```{r}
+(today() %--% next_year) %/% days(1)
+```
+
+```{r}
+Sys.timezone()
+```
+
+```{r}
+length(OlsonNames())
+head(OlsonNames())
+```
+
+```{r}
+(x1 <- ymd_hms("2015-06-01 12:00:00", tz = "America/New_York"))
+(x2 <- ymd_hms("2015-06-01 18:00:00", tz = "Europe/Copenhagen"))
+(x3 <- ymd_hms("2015-06-02 04:00:00", tz = "Pacific/Auckland"))
+```
+
+```{r}
+x1 - x2
+x1 - x3
+```
+
+```{r}
+x4 <- c(x1, x2, x3)
+x4
+```
+
+```{r}
+x4a <- with_tz(x4, tzone = "Australia/Lord_Howe")
+x4a
+x4a-x4
+```
+
+```{r}
+x4b <- force_tz(x4, tzone = "Australia/Lord_Howe")
+x4b
+x4b-x4
+```
+
+
+
+
 # ################################# Part 3. Program ##########################
 
+
 # ###### 14. Pipes with magrittr 
+
+```{r}
+library(magrittr)
+```
+
+```{r}
+foo_foo <- little_bunny()
+foo_foo_1 <- hop(foo_foo, through = forest)
+foo_foo_2 <- scoop(foo_foo_1, up = field_mice)
+foo_foo_3 <- bop(foo_foo_2, on = head)
+```
+
+```{r}
+diamonds <- ggplot2::diamonds
+diamonds2 <- diamonds %>%
+  dplyr::mutate(price_per_carat = price / carat)
+
+pryr::object_size(diamonds)
+pryr::object_size(diamonds2)
+pryr::object_size(diamonds, diamonds2)
+```
+
+```{r}
+diamonds$carat[1] <- NA
+pryr::object_size(diamonds)
+pryr::object_size(diamonds2)
+pryr::object_size(diamonds, diamonds2)
+```
+
+```{r}
+foo_foo <- hop(foo_foo, through = forest)
+foo_foo <- scoop(foo_foo, up = field_mice)
+foo_foo <- bop(foo_foo, on = head)
+```
+
+```{r}
+bop(
+  scoop(
+    hop(foo_foo, through = forest), 
+    up = field_mice
+  ),
+  on = head
+)
+```
+
+```{r}
+foo_foo %>% 
+  hop(through = forest) %>%
+  scoop(up = field_mouse) %>%
+  bop(on = head)
+```
+
+```{r}
+my_pipe <- function(.) {
+. <- hop(., through = forest)
+. <- scoop(., up = field_mice)
+bop(., on = head)
+}
+my_pipe(foo_foo)
+```
+
+```{r}
+assign("x", 10)
+x
+"x" %>% assign(100)
+x
+```
+
+```{r}
+env <- environment()
+"x" %>% assign(100, envir = env)
+x
+```
+
+```{r}
+tryCatch(stop("!"), error = function(e) "An error")
+```
+
+```{r}
+stop("!") %>%
+  tryCatch(error = function(e) "An error")
+```
+
+```{r}
+rnorm(100) %>% 
+  matrix(ncol = 2) %>%
+  plot() %>%
+  str()
+```
+
+```{r}
+rnorm(100) %>%
+  matrix(ncol = 2) %T>%
+  plot() %>%
+  str()
+```
+
+```{r}
+mtcars %$%
+  cor(disp, mpg)
+```
+
+```{r}
+cor(mtcars$disp, mtcars$mpg)
+```
+
+```{r}
+mtcars <- mtcars %>%
+  transform(cyl = cyl * 2)
+```
+
+```{r}
+mtcars %<>% transform(cyl = cyl * 2)
+```
+
+
 # ###### 15. Functions 
+
+```{r}
+df <- tibble::tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+
+df$a <- (df$a - min(df$a, na.rm = TRUE)) / 
+ (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$b <- (df$b - min(df$b, na.rm = TRUE)) /
+(max(df$b, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$c <- (df$c - min(df$c, na.rm = TRUE)) /
+(max(df$c, na.rm = TRUE) - min(df$c, na.rm = TRUE))
+df$d <- (df$d - min(df$d, na.rm = TRUE)) /
+(max(df$d, na.rm = TRUE) - min(df$d, na.rm = TRUE))
+```
+
+```{r}
+x <- df$a
+(x - min(x, na.rm = TRUE))/(max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+```
+
+```{r}
+rng <- range(x, na.rm = TRUE)
+(x - rng[1]) / (rng[2] - rng[1])
+```
+
+```{r}
+rescale01 <- function(x){
+  rng <- range(x, na.rm=TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+rescale01(c(0,5,10))
+```
+
+```{r}
+rescale01(c(-10,0,10))
+rescale01(c(1,2,3,NA,5))
+```
+
+```{r}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+```{r}
+x <- c(1:10, Inf)
+rescale01(x)
+```
+
+```{r}
+rescale01 <- function(x){
+  rng <- range(x, na.rm = TRUE, finite = TRUE)
+  (x - rng[1])/(rng[2]-rng[1])
+}
+rescale01(x)
+```
+
+```{r}
+f()
+my_awesome_function()
+impute_missing()
+collapse_years()
+```
+
+```{r}
+col_mins <- function(x,y){}
+rowMaxes <- function(x,y){}
+```
+
+```{r}
+input_select()
+input_checkbox()
+imput_text()
+
+select_input()
+checkbox_input()
+text_input()
+```
+
+```{r}
+if(condition){
+  # code executed when conditio is TRUE
+} else{
+  # code executed when condition is FALSE
+}
+```
+
+```{r}
+has_name <- function(x){
+  nms <- name(x)
+  if(is.null(nms)){
+    rep(FALSE, length(x))
+  } else{
+    !is.na(nms) & nms!=""
+  }
+}
+```
+
+```{r}
+if(c(TRUE, FALSE)){}
+if(NA){}
+```
+
+```{r}
+identical(0L,0)
+x <- sqrt(2)^2
+x
+x==2
+x-2
+```
+
+```{r}
+if(this){
+  # do that
+} else if (that){
+  # do something else
+} else {
+  #
+}
+```
+
+```{r}
+function(x,y,op){
+  switch(op,
+         plus = x + y,
+         minus = x - y,
+         times = x * y,
+         divide = x / y,
+         stop("Unknown op!"))
+}
+```
+
+```{r}
+if(y < 0 && debug){
+  message("Y is negative")
+}
+
+if(y == 0){
+  log(x)
+} else{
+  y ^ x
+}
+```
+
+```{r}
+y <- 10
+x <- if(y<20) "Too low" else "Too high"
+```
+
+```{r}
+if(y < 20){
+  x <- "Too low"
+} else{
+  x <- "Too high"
+}
+```
+
+```{r}
+mean_ci <- function(x, conf = 0.95){
+  se <- sd(x) / sqrt(length(x))
+  alpha <- 1 - conf
+  mean(x) + se * qnorm(c(alpha / 2, 1 - alpha / 2))
+}
+
+x <- runif(100)
+mean_ci(x)
+mean_ci(x, conf = 0.99)
+```
+
+```{r}
+mean(1:10, na.rm = TRUE)
+```
+
+```{r}
+# x,y,z: vectors
+# w: a vector of weights 
+# df: a data frame 
+# i,j: numeric indices (typically rows and columns)
+# n: length, or number of rows
+# p: number of columns 
+```
+
+```{r}
+wt_mean <- function(x, w){
+  sum(x * w) / sum(x)
+}
+wt_var <- function(x, w){
+  mu <- wt_mean(x, w)
+  sum(w * (x - mu) ^ 2) / sum(w)
+}
+wt_sd <- function(x, w){
+  sqrt(wt_var(x, w))
+}
+```
+
+```{r}
+wt_mean(1:6, 1:3)
+```
+
+```{r}
+wt_mean <- function(x, w){
+  if(length(x) != length(w)){
+    stop("`x` and `w` must be the same length", call = FALSE)
+  }
+  sum(w*x) / sum(x)
+}
+```
+
+```{r}
+wt_mean <- function(x, w, na.rm = FALSE){
+  if(!is.logical(na.rm)){
+    stop("`na.rm` must be logical")
+  }
+  if(length(na.rm) != 1){
+    stop("`na.rm` must be length 1")
+  }
+  if(length(x) != length(w)){
+    stop("`x` and `w` must be the same length", call.=FALSE)
+  }
+  if(na.rm){
+    miss <- is.na(x) | is.na(w)
+    x <- x[!miss]
+    w <- w[!miss]
+  }
+  sum(w*x) / sum(x)
+}
+```
+
+```{r}
+wt_mean <- function(x, w, na.rm = FALSE){
+  stopifnot(is.logical(na.rm), length(na.rm) == 1)
+  stopifnot(length(x)==length(w))
+  
+  if(na.rm){
+    miss <- is.na(x) | is.na(w)
+    x <- x[!miss]
+    w <- w[!miss]
+  }
+  sum(w * x) / sum(x)
+}
+wt_mean(1:6, 6:1, na.rm = "foo")
+```
+
+```{r}
+sum(1,2,3,4,5,6,7,8,9,10)
+```
+
+```{r}
+stringr::str_c("a","b","c","d","e","f")
+```
+
+```{r}
+commas <- function(...) stringr::str_c(..., collapse = ", ")
+commas(letters[1:10])
+```
+
+```{r}
+rule <- function(..., pad = "-"){
+  title <- paste0(...)
+  width <- getOption("width") - nchar(title) - 5
+  cat(title, " ", stringr::str_dup(pad, width), "\n", sep="")
+}
+rule("Important output")
+```
+
+```{r}
+x <- c(1,2)
+sum(x, na.mr = TRUE)
+```
+
+```{r}
+complicated_function <- function(x,y,z){
+  if(length(x) == 0 || length(y) == 0){
+    return(0)
+  }
+  # complicated code here
+}
+```
+
+```{r}
+f <- function(){
+  if(x){
+    # Do
+    # something
+    # that
+    # takes 
+    # many
+    # lines 
+    # to
+    # express
+  }else{
+    # return something short 
+  }
+}
+```
+
+```{r}
+f <- funtion(){
+  if(!x){
+    return(something_short)
+  }
+  # Do 
+  # something
+  # that
+  # takes 
+  # many 
+  # lines 
+  # to 
+  # express
+}
+```
+
+```{r}
+show_missings <- function(df){
+  n <- sum(is.na(df))
+  cat("Missing values: ", n, "\n", sep = "")
+  invisible(df)
+}
+```
+
+```{r}
+show_missings(mtcars)
+```
+
+```{r}
+x <- show_missings(mtcars)
+class(x)
+dim(x)
+```
+
+```{r}
+mtcars %>% 
+  show_missings() %>%
+  mutate(mpg = ifelse(mpg < 20, NA, mpg)) %>%
+  show_missings()
+```
+
+```{r}
+f <- function(x){
+  x + y
+}
+```
+
+```{r}
+y <- 100
+f(10)
+```
+
+```{r}
+y <- 1000
+f(10)
+```
+
+```{r}
+`+` <- function(x, y) {
+if (runif(1) < 0.1) {
+sum(x, y)
+} else {
+sum(x, y) * 1.1
+}
+}
+table(replicate(1000, 1 + 2))
+#>
+#> 3 3.3
+#> 100 900
+rm(`+`)
+```
+
+
 # ###### 16. Vectors 
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+typeof(letters)
+typeof(1:10)
+x <- list("a","b",1:10)
+length(x)
+```
+
+```{r}
+1:10 %% 3 == 0
+c(TRUE, TRUE, FALSE, NA)
+```
+
+```{r}
+typeof(1)
+typeof(1L)
+1.5L
+```
+
+```{r}
+x <- sqrt(2) ^ 2
+x
+x - 2
+```
+
+```{r}
+c(-1, 0, 1) / 0
+```
+
+```{r}
+is.finite(0)
+is.infinite(Inf)
+is.na(NA)
+is.nan(NaN)
+```
+
+```{r}
+x <- "This is a reasonably long string"
+pryr::object_size(x)
+
+y <- rep(x,1000)
+pryr::object_size(y)
+```
+
+```{r}
+NA
+NA_integer_
+NA_real_
+NA_character_
+```
+
+```{r}
+x <- sample(20, 100, replace = TRUE)
+y <- x > 10
+sum(y)
+mean(y)
+```
+
+```{r}
+typeof(c(TRUE, 1L))
+typeof(c(1L, 1.5))
+typeof(c(1.5, "a"))
+```
+
+```{r}
+is_logical()
+is_integer()
+is_double()
+is_numeric()
+is_character()
+is_atomic()
+is_list()
+is_vector()
+```
+
+```{r}
+sample(10) + 100
+runif(10) > 0.5
+```
+
+```{r}
+1:10 + 1:2
+```
+
+```{r}
+1:10 + 1:3
+```
+
+```{r}
+tibble(x = 1:4,
+       y = 1:2)
+```
+
+```{r}
+tibble(x = 1:4,
+       y = rep(1:2,2))
+```
+
+```{r}
+tibble(x = 1:4,
+       y = rep(1:2, each = 2))
+```
+
+```{r}
+c(x = 1, y = 2, z = 4)
+```
+
+```{r}
+set_names(1:3, c("a","b","c"))
+```
+
+```{r}
+x <- c("one","two","three","four","five")
+x[c(3,2,5)]
+```
+
+```{r}
+x[c(1,1,5,5,2)]
+```
+
+```{r}
+x[c(-1, -3, -5)]
+```
+```{r}
+x[c(1,-1)]
+```
+
+```{r}
+x[0]
+```
+
+```{r}
+x <- c(10,3,NA,5,8,1,NA)
+x[!is.na(x)]
+x[x %% 2 == 0]
+```
+
+```{r}
+x <- c(abc = 1, def = 2, xyz = 5)
+x[c("xyz", "def")]
+```
+
+```{r}
+x <- list(1,2,3)
+x
+```
+
+```{r}
+str(x)
+```
+
+```{r}
+x_names <- list(a = 1, b = 2, c = 3)
+str(x_named)
+```
+
+```{r}
+y <- list("a",1L,1.5,TRUE)
+str(y)
+```
+
+```{r}
+z <- list(list(1,2),list(3,4))
+str(z)
+```
+
+```{r}
+x1 <- list(c(1,2),c(3,4))
+x2 <- list(list(1,2),list(3,4))
+x3 <- list(1,list(2,list(3)))
+```
+
+```{r}
+a <- list(a = 1:3, b = "a string", c = pi, d = list(-1, -5))
+```
+
+```{r}
+str(a[1:2])
+```
+
+```{r}
+str(a[4])
+```
+
+```{r}
+str(y[[1]])
+```
+
+```{r}
+str(y[[4]])
+```
+
+```{r}
+a$a
+```
+
+```{r}
+a[["a"]]
+```
+
+```{r}
+x <- 1:10
+attr(x, "greeting")
+```
+
+```{r}
+attr(x, "greeting")<-"Hi!"
+attr(x, "farewell") <- "Bye!"
+attributes(x)
+```
+
+```{r}
+str(x)
+```
+
+```{r}
+as.Date
+```
+
+```{r}
+methods("as.Date")
+```
+
+```{r}
+getS3method("as.Date","default")
+```
+
+```{r}
+getS3method("as.Date","numeric")
+```
+
+```{r}
+x <- factor(c("ab","cd","ab"), levels = c("ab","cd","ef"))
+typeof(x)
+attributes(x)
+```
+
+```{r}
+x <- as.Date("1971-01-01")
+unclass(x)
+typeof(x)
+attributes(x)
+```
+
+```{r}
+x <- lubridate::ymd_hm("1970-01-01 01:00")
+unclass(x)
+typeof(x)
+attributes(x)
+```
+
+```{r}
+attr(x, "tzone") <- "US/Pacific"
+x
+attr(x, "tzone") <- "US/Eastern"
+x
+```
+
+```{r}
+y <- as.POSIXct(x)
+typeof(y)
+attributes(y)
+```
+
+```{r}
+tb <- tibble::tibble(x = 1:5, y = 5:1)
+typeof(tb)
+attributes(tb)
+```
+
+```{r}
+df <- data.frame(x = 1:5, y = 5:1)
+typeof(df)
+attributes(df)
+```
+
+
+
 # ###### 17. Iteration with purrr
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+df
+```
+
+```{r}
+median(df$a)
+median(df$b)
+median(df$c)
+median(df$d)
+```
+
+```{r}
+output <- vector("double",ncol(df)) # 1. output
+for (i in seq_along(df)){           # 2. sequence
+  output[[i]] <- median(df[[i]])    # 3. body
+}
+output
+```
+
+```{r}
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+rescale01 <- function(x){
+  rng <- range(x, na.rm = TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+```{r}
+for (i in seq_along(df)) {
+  df[[i]] <- rescale01(df[[i]])
+}
+```
+
+```{r}
+for (i in seq_along(x)){
+  name <- names(x)[[i]]
+  value <- x[[i]]
+}
+```
+
+```{r}
+means <- c(0,1,2)
+
+output <- double()
+for (i in seq_along(means)){
+  n <- sample(100,1)
+  output <- c(output, rnorm(n, means[[i]]))
+}
+str(output)
+```
+
+```{r}
+out <- vector("list", length(means))
+for (i in seq_along(means)){
+  n <- sample(100,1)
+  out[[i]] <- rnorm(n,means[[i]])
+}
+str(out)
+str(unlist(out))
+```
+
+```{r}
+while(condition){
+  # body
+}
+```
+
+```{r}
+for (i in seq_along(x)){
+  # body
+}
+
+# Equivalent to
+i <- 1
+while(i <= length(x)){
+  # body
+  i <- i + 1
+}
+```
+
+```{r}
+flip <- function() sample(c("T","H"),1)
+
+flips <- 0
+nheads <- 0
+
+while(nheads < 3) {
+  if(flip() == "H"){
+    nheads <- nheads + 1
+  }else{
+    nheads <- 0
+  }
+  flips <- flips + 1
+}
+flips
+```
+
+```{r}
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+```
+
+```{r}
+output <- vector("double", length(df))
+for (i in seq_along(df)) {
+  output[[i]] <- mean(df[[i]])
+}
+output
+```
+
+```{r}
+col_mean <- function(df){
+  output <- vector("double",length(df))
+  for (i in seq_along(df)){
+    output[i] <- mean(df[[i]])
+  }
+  output
+}
+```
+
+```{r}
+col_median <- function(df) {
+  output <- vector("double", length(df))
+  for (i in seq_along(df)) {
+    output[i] <- median(df[[i]])
+  }
+  output
+}
+
+col_sd <- function(df) {
+  output <- vector("double", length(df))
+  for (i in seq_along(df)) {
+    output[i] <- sd(df[[i]])
+  }
+  output
+}
+```
+
+```{r}
+f1 <- function(x) abs(x - mean(x)) ^ 1
+f2 <- function(x) abs(x - mean(x)) ^ 2
+f3 <- function(x) abs(x - mean(x)) ^ 3
+```
+
+```{r}
+f <- function(x, i) abs(x - mean(x)) ^ i
+```
+
+```{r}
+col_summary <- function(df, fun){
+  out <- vector("double", length(df))
+  for(i in seq_along(df)){
+    out[i] <- fun(df[[i]])
+  }
+  out
+}
+
+col_summary(df, median)
+col_summary(df, mean)
+```
+
+```{r}
+map()
+map_lgl()
+map_int()
+map_dbl()
+map_chr()
+```
+
+```{r}
+map_dbl(df, mean)
+map_dbl(df, median)
+map_dbl(df, sd)
+```
+
+```{r}
+df %>% map_dbl(mean)
+df %>% map_dbl(median)
+df %>% map_dbl(sd)
+```
+
+```{r}
+map_dbl(df, mean, trim = 0.5)
+```
+
+```{r}
+z <- list(x = 1:3, y = 4:5)
+map_int(z, length)
+```
+
+```{r}
+models <- mtcars %>%
+  split(.$cyl) %>%
+  map(function(df) lm(mpg~wt, data = df))
+models
+```
+
+```{r}
+models <- mtcars %>%
+  split(.$cyl) %>%
+  map(~lm(mpg~wt, data=.))
+models
+```
+
+```{r}
+models %>%
+  map(summary) %>%
+  map_dbl(~.$r.squared)
+```
+
+```{r}
+models %>% 
+  map(summary) %>%
+  map_dbl("r.squared")
+```
+
+```{r}
+x <- list(list(1,2,3), list(4,5,6), list(7,8,9))
+x %>% map_dbl(2)
+```
+
+```{r}
+x1 <- list(
+c(0.27, 0.37, 0.57, 0.91, 0.20),
+c(0.90, 0.94, 0.66, 0.63, 0.06),
+c(0.21, 0.18, 0.69, 0.38, 0.77)
+)
+x2 <- list(
+c(0.50, 0.72, 0.99, 0.38, 0.78),
+c(0.93, 0.21, 0.65, 0.13, 0.27),
+c(0.39, 0.01, 0.38, 0.87, 0.34)
+)
+threshold <- function(x, cutoff = 0.8) x[x > cutoff]
+x1 %>% sapply(threshold) %>% str()
+#> List of 3
+#> $ : num 0.91
+#> $ : num [1:2] 0.9 0.94
+#> $ : num(0)
+x2 %>% sapply(threshold) %>% str()
+#> num [1:3] 0.99 0.93 0.87
+```
+
+```{r}
+safe_log <- safely(log)
+str(safe_log(10))
+str(safe_log("a"))
+```
+
+```{r}
+x <- list(1,10,"a")
+y <- x %>% map(safely(log))
+str(y)
+```
+
+```{r}
+y <- y %>% transpose()
+str(y)
+```
+
+```{r}
+is_ok <- y$error %>% map_lgl(is_null)
+x[!is_ok]
+y$result[is_ok] %>% flatten_dbl
+```
+
+```{r}
+x <- list(1,10,"a")
+x %>% map_dbl(possibly(log, NA_real_))
+```
+
+```{r}
+x <- list(1,-1)
+x %>% map(quietly(log)) %>% str()
+```
+
+```{r}
+mu <- list(5,10,-3)
+mu %>% 
+  map(rnorm, n = 5) %>%
+  str()
+```
+
+```{r}
+sigma <- list(1,5,10)
+seq_along(mu) %>%
+  map(~rnorm(5,mu[[.]],sigma[[.]])) %>%
+  str()
+```
+
+```{r}
+map2(mu, sigma, rnorm, n = 5) %>% str()
+```
+
+```{r}
+mu %>% 
+  map2(sigma, rnorm, n = 5) %>%
+  str()
+```
+
+```{r}
+map2 <- function(x,y,f,...){
+  out <- vector("list",length(x))
+  for(i in seq_along(x)){
+    out[[i]]<-f(x[[i]],y[[i]],...)
+  }
+  out
+}
+```
+
+```{r}
+n <- list(1,3,5)
+args1 <- list(n, mu, sigma)
+args1 %>% 
+  pmap(rnorm) %>%
+  str()
+```
+
+```{r}
+args2 <- list(mean = mu, sd = sigma, n = n)
+args2 %>% 
+  pmap(rnorm) %>%
+  str()
+```
+
+```{r}
+params <- tribble(
+  ~mean, ~sd, ~n,
+  5,1,1,
+  10, 5, 3,
+  -3, 10, 5
+)
+params %>%
+  pmap(rnorm)
+```
+
+```{r}
+args(rnorm)
+```
+
+```{r}
+f <- c("runif","rnorm","rpois")
+param <- list(
+  list(min = -1, max = 1),
+  list(sd = 5),
+  list(lambda = 10)
+)
+```
+
+```{r}
+invoke_map(f,param,n=5) %>% str()
+```
+
+```{r}
+sim <- tribble(
+  ~f, ~params,
+  "runif", list(min = 1, max = 1),
+  "rnorm", list(sd = 5),
+  "rpois", list(lambda = 10)
+)
+sim %>% mutate(sim = invoke_map(f,params,n=10))
+```
+
+```{r}
+x <- list(1,"a",3)
+x %>%
+  walk(print)
+```
+
+```{r}
+library(ggplot2)
+plots <- mtcars %>%
+  split(.$cyl) %>%
+  map(~ggplot(.,aes(mpg,wt))+geom_point())
+paths <- stringr::str_c(names(plots),".pdf")
+
+pwalk(list(paths,plots),ggsave,path = tempdir())
+```
+
+```{r}
+iris %>%
+  keep(is.factor) %>%
+  str()
+```
+
+```{r}
+iris %>%
+  discard(is.factor) %>% 
+  str()
+```
+
+```{r}
+x <- list(1:5, letters, list(10))
+x %>%
+  some(is_character)
+```
+
+```{r}
+x %>% 
+  every(is_vector)
+```
+
+```{r}
+x <- sample(10)
+x
+
+x %>% 
+  detect(~ .>5)
+
+x %>%
+  detect_index(~ .>5)
+```
+
+```{r}
+x %>%
+  head_while(~. >5)
+
+x %>%
+  tail_while(~. >5)
+```
+
+```{r}
+dfs <- list(
+  age = tibble(name = "John", age = 30),
+  sex = tibble(name = c("John", "Mary"), sex = c("M","F")),
+  trt = tibble(name = "Mary", treatment = "A")
+)
+
+dfs %>% reduce(full_join)
+```
+
+```{r}
+vs <- list(
+  c(1,3,5,6,10),
+  c(1,2,3,7,8,10),
+  c(1,2,3,4,8,9,10)
+)
+vs %>% reduce(intersect)
+```
+
+```{r}
+x <- sample(10)
+x
+x %>% accumulate(`+`)
+```
+
+```{r}
+x %>% reduce(`+`)
+```
+
+
+
 
 # ################################# Part 4. Model ##########################
 
 # ###### 18. Model basics with modelr 
+
+
+```{r}
+371-399
+```
+
+
 # ###### 19. Model building 
+
+```{r}
+401-422
+```
+
 # ###### 20. Many models with purrr and broom
+
+```{r}
+423-445
+```
 
 
 # ################################# Part 5. Communicate ######################
-
 # ###### 21. R markdown 
 # ###### 22. Graphics for communication with ggplot2 
 # ###### 23. R markdown formats 
 # ###### 24. R markdown workflow 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
